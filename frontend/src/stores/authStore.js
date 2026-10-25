@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, updatePassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, updatePassword, signOut } from 'firebase/auth';
 import { firebaseAuth } from '../services/firebase';
 import { getOrCreateUserProfile, updateUserProfile } from '../services/firebaseUsers';
 
@@ -14,7 +14,20 @@ function readableAuthError(error, action) {
     case 'auth/user-disabled':
       return 'This account has been deactivated. Contact an administrator to reactivate it.';
     case 'auth/operation-not-allowed':
-      return 'Email and password sign-up is disabled. Enable it in Firebase Authentication settings.';
+      return action === 'Google sign-in'
+        ? 'Google sign-in is disabled. Enable the Google provider in Firebase Authentication settings.'
+        : 'Email and password sign-up is disabled. Enable it in Firebase Authentication settings.';
+    case 'auth/popup-blocked':
+      return 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'Google sign-in was cancelled. Try again when you are ready.';
+    case 'auth/unauthorized-domain':
+      return 'This website domain is not authorized for Google sign-in. Add it to Firebase Authentication’s authorized domains.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email using another sign-in method. Sign in with that method first.';
+    case 'auth/network-request-failed':
+      return 'Could not reach Firebase. Check your internet connection and try again.';
     case 'permission-denied':
       return action === 'register'
         ? 'The account may have been created, but Firestore blocked its profile. Publish the project Firestore rules, then sign in.'
@@ -88,6 +101,25 @@ export const useAuthStore = defineStore('auth', {
         return { success: true };
       } catch (error) {
         this.error = readableAuthError(error, 'sign in');
+        return { success: false, message: this.error };
+      } finally { this.isLoading = false; }
+    },
+    async signInWithGoogle() {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const credential = await signInWithPopup(firebaseAuth, provider);
+        try {
+          await this.setFirebaseUser(credential.user);
+        } catch (error) {
+          await signOut(firebaseAuth).catch(() => {});
+          throw error;
+        }
+        return { success: true };
+      } catch (error) {
+        this.error = readableAuthError(error, 'Google sign-in');
         return { success: false, message: this.error };
       } finally { this.isLoading = false; }
     },

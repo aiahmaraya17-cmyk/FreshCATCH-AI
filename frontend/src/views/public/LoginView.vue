@@ -52,6 +52,17 @@
         </button>
       </form>
 
+      <div class="auth-divider"><span>or continue with</span></div>
+      <button type="button" class="google-signin-btn" :disabled="isLoading" @click="handleGoogleLogin">
+        <svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.7c3.9-3.6 6-8.8 6-15Z"/>
+          <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.7-5.1c-1.8 1.2-4 2-6.8 2-5.2 0-9.6-3.5-11.2-8.2H5.9v5.2A20 20 0 0 0 24 44Z"/>
+          <path fill="#FBBC05" d="M12.8 27.8a12 12 0 0 1 0-7.6V15H5.9a20 20 0 0 0 0 18l6.9-5.2Z"/>
+          <path fill="#EA4335" d="M24 12c3 0 5.7 1 7.8 3l5.8-5.8A19.5 19.5 0 0 0 24 4 20 20 0 0 0 5.9 15l6.9 5.2C14.4 15.5 18.8 12 24 12Z"/>
+        </svg>
+        <span>{{ isLoading ? 'Connecting to Google…' : 'Continue with Google' }}</span>
+      </button>
+
       <div class="auth-footer text-center">
         <span>Don't have an account yet? </span>
         <router-link to="/register" class="text-cyan font-bold">Sign Up</router-link>
@@ -140,6 +151,20 @@ async function handleLogin() {
     errorMessage.value = res.message || 'Invalid email or password';
   }
 }
+
+async function handleGoogleLogin() {
+  isLoading.value = true;
+  errorMessage.value = '';
+  const res = await authStore.signInWithGoogle();
+  isLoading.value = false;
+
+  if (res.success) {
+    const redirectPath = route.query.redirect || (authStore.isResearcher ? '/admin' : '/dashboard');
+    router.push(redirectPath);
+  } else {
+    errorMessage.value = res.message || 'Google sign-in failed. Please try again.';
+  }
+}
 </script>
 
 <style scoped>
@@ -183,6 +208,19 @@ async function handleLogin() {
   flex-direction: column;
   gap: 1.1rem;
 }
+
+.auth-divider { display: flex; align-items: center; gap: 0.85rem; margin: 1.2rem 0 0.9rem; color: var(--text-dim); font-size: 0.75rem; }
+.auth-divider::before, .auth-divider::after { content: ''; height: 1px; flex: 1; background: var(--border-glass); }
+.google-signin-btn {
+  width: 100%; min-height: 3.1rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+  border: 1px solid var(--border-glass); border-radius: var(--radius-sm); background: rgba(255,255,255,0.04);
+  color: var(--text-white); font: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+.google-signin-btn:hover:not(:disabled) { border-color: rgba(255,255,255,0.45); background: rgba(255,255,255,0.08); }
+.google-signin-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.google-signin-btn:disabled { opacity: 0.65; cursor: wait; }
+.google-mark { width: 1.2rem; height: 1.2rem; flex: 0 0 auto; }
 
 .form-group label {
   display: block;

@@ -7,8 +7,10 @@ service cloud.firestore {
         && request.resource.data.uid == uid
         && request.resource.data.role == 'consumer'
         && (!request.resource.data.keys().hasAny(['active']) || request.resource.data.active == true);
-      allow read: if request.auth != null && request.auth.uid == uid
-        && (!resource.data.keys().hasAny(['active']) || resource.data.active == true);
+      // A signed-in user must be able to check whether their own profile exists
+      // before the client creates it during email or Google registration.
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
       allow update: if request.auth != null
         && request.auth.uid == uid
         && request.resource.data.uid == uid
