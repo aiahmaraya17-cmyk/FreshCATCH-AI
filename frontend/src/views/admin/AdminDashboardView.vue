@@ -159,8 +159,19 @@ onMounted(async () => {
 
 <style scoped>
 .admin-dashboard-view {
-  padding: 3rem 1.25rem;
+  padding: 2.5rem 1.25rem;
 }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.page-header h1 { margin: 0.5rem 0; }
+.subtitle { max-width: 680px; color: var(--text-muted); }
 
 .flex-between {
   display: flex;
@@ -233,6 +244,7 @@ onMounted(async () => {
 .model-quick-metrics {
   display: flex;
   gap: 2rem;
+  min-width: 0;
 }
 
 .q-metric {
@@ -281,4 +293,33 @@ onMounted(async () => {
 }
 
 .mb-4 { margin-bottom: 2rem; }
+
+@media (max-width: 768px) {
+  .admin-dashboard-view { padding: 1.5rem 1rem 3rem; }
+  .page-header { align-items: stretch; flex-direction: column; gap: 1rem; }
+  .page-header h1 { font-size: clamp(1.65rem, 7vw, 2.2rem); overflow-wrap: anywhere; }
+  .header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .header-actions .btn { justify-content: center; text-align: center; }
+  .admin-dashboard-view .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi-card { min-width: 0; gap: 0.8rem; padding: 1rem; }
+  .kpi-num { font-size: 1.5rem; }
+  .kpi-lbl { line-height: 1.35; }
+  .model-status-card { padding: 1.2rem; }
+  .model-meta-row { width: 100%; }
+  .model-meta-row > div:first-child { min-width: 0; }
+  .model-meta-row h3,
+  .model-ver-code { overflow-wrap: anywhere; }
+  .model-quick-metrics { width: 100%; justify-content: space-around; gap: 0.75rem; }
+  .q-num { font-size: 1.2rem; }
+  .admin-nav-card { min-width: 0; padding: 1.2rem; }
+  .admin-nav-card h4,
+  .admin-nav-card p { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 360px) {
+  .admin-dashboard-view { padding-inline: 0.75rem; }
+  .admin-dashboard-view .grid-4 { grid-template-columns: minmax(0, 1fr); }
+  .header-actions { grid-template-columns: 1fr; }
+  .model-quick-metrics { gap: 0.4rem; }
+}
 </style>

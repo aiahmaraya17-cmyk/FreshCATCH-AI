@@ -191,15 +191,23 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   gap: 2rem;
+  min-width: 0;
   padding: 2.5rem;
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(20, 184, 166, 0.08));
 }
+
+.welcome-left,
+.welcome-right { min-width: 0; }
+.welcome-right { flex: 0 1 42%; }
 
 @media (max-width: 850px) {
   .welcome-card {
     flex-direction: column;
     align-items: flex-start;
   }
+  .welcome-left,
+  .welcome-right { width: 100%; }
+  .welcome-right { flex: 1 1 auto; }
 }
 
 .welcome-left h1 {
@@ -225,12 +233,15 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 600px) {
   .stats-mini-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .stats-mini-grid .mini-stat-card:last-child { grid-column: 1 / -1; }
 }
 
 .mini-stat-card {
@@ -267,6 +278,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
 
@@ -396,4 +408,31 @@ onMounted(async () => {
 .w-full { width: 100%; }
 .mt-2 { margin-top: 0.5rem; }
 .text-sm { font-size: 0.82rem; }
+
+@media (max-width: 600px) {
+  .dashboard-view { padding: 1.25rem 1rem 2.5rem; }
+  .welcome-card { width: 100%; gap: 1.5rem; padding: clamp(1.25rem, 5vw, 1.75rem); }
+  .welcome-left,
+  .welcome-right { width: 100%; flex: 1 1 auto; }
+  .welcome-left h1 { font-size: clamp(1.7rem, 8vw, 2.2rem); line-height: 1.12; overflow-wrap: anywhere; }
+  .welcome-sub { margin-bottom: 1.1rem; font-size: 0.9rem; }
+  .welcome-actions { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
+  .welcome-actions .btn { width: 100%; justify-content: center; }
+  .mini-stat-card { min-width: 0; padding: 0.85rem 0.55rem; }
+  .stat-lbl { display: block; line-height: 1.35; }
+  .panel-card { min-width: 0; padding: 1.1rem; }
+  .panel-header { align-items: flex-start; flex-wrap: wrap; }
+  .panel-header h3 { min-width: 0; font-size: 1.05rem; }
+  .species-chips-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cat-row { align-items: flex-start; flex-direction: column; gap: 0.3rem; }
+  .cat-hint { text-align: left; }
+  .empty-state { padding: 1.5rem 0.5rem; }
+}
+
+@media (max-width: 360px) {
+  .stats-mini-grid { grid-template-columns: 1fr; }
+  .stats-mini-grid .mini-stat-card:last-child { grid-column: auto; }
+  .welcome-card { padding: 1.1rem; }
+  .panel-card { padding: 0.9rem; }
+}
 </style>
