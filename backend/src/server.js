@@ -106,6 +106,7 @@ app.get('/api/health', (req, res) => {
     domain: 'Roxas, Oriental Mindoro',
     targetYear: 2026,
     activeArchitecture: 'MobileNetV2 Transfer Learning CNN',
+    userManagementApi: 'firebase-auth-crud-v1',
     timestamp: new Date().toISOString()
   });
 });
