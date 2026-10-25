@@ -3,6 +3,7 @@ export const translations = {
     nav: {
       home: 'Home',
       analyze: 'Analyze Fish',
+      analytics: 'Analytics',
       history: 'History',
       guide: 'Freshness Guide',
       howItWorks: 'How It Works',
@@ -70,6 +71,7 @@ export const translations = {
     nav: {
       home: 'Tahanan',
       analyze: 'Suriin ang Isda',
+      analytics: 'Analytics',
       history: 'Kasaysayan',
       guide: 'Gabay sa Kasariwaan',
       howItWorks: 'Paano Gumagana',

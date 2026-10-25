@@ -52,9 +52,10 @@ app.use(helmet({
 // Set CORS_ORIGINS to a comma-separated list, e.g.
 //   CORS_ORIGINS=https://freshcatch.vercel.app,https://www.freshcatch.app
 // If unset (local dev), all origins are allowed for convenience.
+const normalizeOrigin = (origin) => origin.trim().replace(/\/+$/, '');
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
-  .map((o) => o.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
 
 app.use(cors({
@@ -64,7 +65,7 @@ app.use(cors({
     // No allow-list configured → permissive (development default).
     if (allowedOrigins.length === 0) return callback(null, true);
     // Otherwise only permit explicitly allowed origins.
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.includes(normalizeOrigin(origin))) return callback(null, true);
     return callback(new Error(`Origin ${origin} is not allowed by CORS policy.`));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

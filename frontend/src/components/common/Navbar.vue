@@ -23,8 +23,8 @@
       <ul class="nav-links desktop-only" aria-label="Main navigation">
         <li><router-link to="/" class="nav-link" exact-active-class="active">{{ t('nav.home') }}</router-link></li>
         <li>
-          <router-link to="/analyze" class="nav-link" active-class="active">
-            <span class="live-dot"></span>{{ t('nav.analyze') }}
+          <router-link :to="analysisNavPath" class="nav-link" active-class="active" :class="{ active: analyticsNavIsActive }">
+            <span class="live-dot"></span>{{ t(authStore.isAdmin ? 'nav.analytics' : 'nav.analyze') }}
           </router-link>
         </li>
         <li><router-link to="/stalls" class="nav-link" active-class="active">{{ t('nav.stalls') }}</router-link></li>
@@ -156,9 +156,10 @@
             {{ t('nav.home') }}
           </router-link>
 
-          <router-link to="/analyze" class="drawer-link drawer-link-primary" active-class="drawer-active">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span class="flex-center gap-1"><span class="live-dot"></span>{{ t('nav.analyze') }}</span>
+          <router-link :to="analysisNavPath" class="drawer-link drawer-link-primary" active-class="drawer-active" :class="{ 'drawer-active': analyticsNavIsActive }">
+            <svg v-if="authStore.isAdmin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-4 4"/></svg>
+            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span class="flex-center gap-1"><span v-if="!authStore.isAdmin" class="live-dot"></span>{{ t(authStore.isAdmin ? 'nav.analytics' : 'nav.analyze') }}</span>
           </router-link>
 
           <router-link to="/stalls" class="drawer-link" active-class="drawer-active">
@@ -212,6 +213,9 @@ const router    = useRouter();
 const route = useRoute();
 const desktopMoreMenu = ref(null);
 const dashboardPath = computed(() => authStore.isResearcher ? '/admin' : '/dashboard');
+const analysisNavPath = computed(() => authStore.isAdmin ? '/admin' : '/analyze');
+const analyticsNavIsActive = computed(() => authStore.isAdmin
+  && route.path.startsWith('/admin') && route.path !== '/admin/users');
 const dashboardIsActive = computed(() => route.path === '/dashboard'
   || (authStore.isResearcher && route.path.startsWith('/admin') && route.path !== '/admin/users'));
 const moreIsActive = computed(() => ['/guide', '/how-it-works', '/about', '/history', '/profile', '/my-stall', '/admin/users']
