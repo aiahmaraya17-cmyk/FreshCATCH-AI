@@ -11,6 +11,8 @@ function readableAuthError(error, action) {
       return 'Enter a valid email address.';
     case 'auth/weak-password':
       return 'Choose a password with at least 6 characters.';
+    case 'auth/user-disabled':
+      return 'This account has been deactivated. Contact an administrator to reactivate it.';
     case 'auth/operation-not-allowed':
       return 'Email and password sign-up is disabled. Enable it in Firebase Authentication settings.';
     case 'permission-denied':
@@ -62,6 +64,9 @@ export const useAuthStore = defineStore('auth', {
             await this.setFirebaseUser(firebaseUser);
           } catch (error) {
             console.error('Could not load Firebase profile:', error);
+            if (error.code === 'permission-denied' || error.code === 'auth/user-disabled') {
+              await signOut(firebaseAuth).catch(() => {});
+            }
             this.user = null;
             this.token = null;
             localStorage.removeItem('freshcatch_token');

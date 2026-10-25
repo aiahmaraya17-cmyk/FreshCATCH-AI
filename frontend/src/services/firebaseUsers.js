@@ -5,6 +5,11 @@ export async function getOrCreateUserProfile(user, name = '') {
   const ref = doc(firestore, 'users', user.uid);
   const snapshot = await getDoc(ref);
   const stored = snapshot.exists() ? snapshot.data() : {};
+  if (stored.active === false) {
+    const error = new Error('This account has been deactivated. Contact an administrator.');
+    error.code = 'auth/user-disabled';
+    throw error;
+  }
   const profile = {
     uid: user.uid,
     name: stored.name || name || user.displayName || user.email?.split('@')[0] || 'FreshCatch User',

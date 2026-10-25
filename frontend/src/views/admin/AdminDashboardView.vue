@@ -117,7 +117,7 @@
       <router-link v-if="authStore.isAdmin" to="/admin/users" class="glass-card admin-nav-card">
         <div class="nav-card-icon">Users</div>
         <h4>Manage Users</h4>
-        <p>Create accounts, update user details and roles, or remove accounts</p>
+        <p>Create, edit, activate, deactivate, or remove user accounts</p>
       </router-link>
     </div>
   </div>

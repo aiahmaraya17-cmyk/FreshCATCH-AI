@@ -4,7 +4,7 @@
       <div>
         <span class="badge badge-cyan">Access Control</span>
         <h1>Manage Users</h1>
-        <p class="subtitle">Create, edit, and remove Firebase accounts and assign application roles.</p>
+        <p class="subtitle">Create, edit, activate, deactivate, and remove Firebase accounts.</p>
       </div>
       <button class="btn btn-primary" type="button" @click="openCreate">Add user</button>
     </header>
@@ -21,6 +21,7 @@
               <th>User</th>
               <th>Email</th>
               <th>Role</th>
+              <th>Account status</th>
               <th>Joined</th>
               <th class="actions-heading">Actions</th>
             </tr>
@@ -36,9 +37,15 @@
               </td>
               <td class="email-cell" data-label="Email">{{ user.email }}</td>
               <td data-label="Role"><span class="badge" :class="getRoleBadge(user.role)">{{ user.role }}</span></td>
+              <td data-label="Account status">
+                <span class="badge" :class="user.disabled ? 'badge-not-fresh' : 'badge-fresh'">{{ user.disabled ? 'Deactivated' : 'Active' }}</span>
+              </td>
               <td class="date-cell" data-label="Joined">{{ formatDate(user.created_at) }}</td>
               <td class="row-actions" data-label="Actions">
                 <button class="btn btn-secondary btn-sm" type="button" @click="openEdit(user)">Edit</button>
+                <button class="btn btn-sm" :class="user.disabled ? 'btn-secondary' : 'btn-danger'" type="button" :disabled="isCurrentUser(user)" @click="toggleAccountStatus(user)">
+                  {{ user.disabled ? 'Activate' : 'Deactivate' }}
+                </button>
                 <button
                   class="btn btn-danger btn-sm"
                   type="button"
@@ -57,7 +64,7 @@
       <section class="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
         <button class="modal-close" type="button" aria-label="Close" @click="closeModal">&times;</button>
         <h2 id="user-modal-title">{{ editingId ? 'Edit user' : 'Create user' }}</h2>
-        <p class="modal-subtitle">{{ editingId ? 'Update the account details and role.' : 'Create a Firebase Authentication account and profile.' }}</p>
+        <p class="modal-subtitle">{{ editingId ? 'Update the account details and access status.' : 'Create a Firebase Authentication account and profile.' }}</p>
 
         <div v-if="formError" class="notice error" role="alert">{{ formError }}</div>
         <form class="user-form" @submit.prevent="saveUser">
@@ -72,14 +79,25 @@
             <input id="user-password" v-model="form.password" class="input-field" type="password" autocomplete="new-password" minlength="6" required />
           </template>
 
-          <label class="field-label" for="user-role">Role</label>
-          <select id="user-role" v-model="form.role" class="input-field" required :disabled="editingSelf">
-            <option value="consumer">Consumer</option>
-            <option value="vendor">Vendor</option>
-            <option value="researcher">Researcher</option>
-            <option value="admin">Admin</option>
-          </select>
-          <p v-if="editingSelf" class="field-hint">You cannot remove your own admin role.</p>
+          <label v-if="editingId" class="field-label">Account status</label>
+          <button
+            v-if="editingId"
+            class="status-toggle"
+            :class="{ active: !form.disabled, disabled: form.disabled }"
+            type="button"
+            role="switch"
+            :aria-checked="!form.disabled"
+            :disabled="editingSelf"
+            @click="form.disabled = !form.disabled"
+          >
+            <span class="status-indicator"></span>
+            <span class="status-copy">
+              <strong>{{ form.disabled ? 'Deactivated' : 'Active' }}</strong>
+              <small>{{ form.disabled ? 'Activate this account' : 'Deactivate this account' }}</small>
+            </span>
+          </button>
+          <p v-if="editingSelf" class="field-hint">You cannot deactivate your own signed-in account.</p>
+          <p v-else-if="!editingId" class="field-hint">New accounts are active by default.</p>
 
           <div class="modal-actions">
             <button class="btn btn-secondary" type="button" :disabled="isSaving" @click="closeModal">Cancel</button>
@@ -107,7 +125,7 @@ const editingId = ref(null);
 const formError = ref('');
 const notice = ref('');
 const noticeType = ref('success');
-const form = reactive({ name: '', email: '', password: '', role: 'consumer' });
+const form = reactive({ name: '', email: '', password: '', disabled: false });
 const editingSelf = computed(() => users.value.find((user) => user.id === editingId.value)?.email === authStore.user?.email);
 
 function isCurrentUser(user) {
@@ -139,14 +157,14 @@ async function loadUsers() {
 
 function openCreate() {
   editingId.value = null;
-  Object.assign(form, { name: '', email: '', password: '', role: 'consumer' });
+  Object.assign(form, { name: '', email: '', password: '', disabled: false });
   formError.value = '';
   modalOpen.value = true;
 }
 
 function openEdit(user) {
   editingId.value = user.id;
-  Object.assign(form, { name: user.name, email: user.email, password: '', role: user.role });
+  Object.assign(form, { name: user.name, email: user.email, password: '', disabled: Boolean(user.disabled) });
   formError.value = '';
   modalOpen.value = true;
 }
@@ -160,12 +178,12 @@ async function saveUser() {
   isSaving.value = true;
   formError.value = '';
   try {
-    const payload = { name: form.name, email: form.email, role: form.role };
+    const payload = { name: form.name, email: form.email, disabled: form.disabled };
     if (editingId.value) {
       await ApiService.updateManagedUser(editingId.value, payload);
       notice.value = 'User account updated.';
     } else {
-      await ApiService.createManagedUser({ ...payload, password: form.password });
+      await ApiService.createManagedUser({ name: form.name, email: form.email, password: form.password });
       notice.value = 'User account created.';
     }
     noticeType.value = 'success';
@@ -193,6 +211,23 @@ async function removeUser(user) {
   }
 }
 
+async function toggleAccountStatus(user) {
+  if (isCurrentUser(user)) return;
+  const disabled = !user.disabled;
+  const action = disabled ? 'deactivate' : 'activate';
+  if (!window.confirm(`Are you sure you want to ${action} ${user.name}'s account?`)) return;
+  notice.value = '';
+  try {
+    await ApiService.updateManagedUser(user.id, { disabled });
+    noticeType.value = 'success';
+    notice.value = `Account ${disabled ? 'deactivated' : 'activated'}.`;
+    await loadUsers();
+  } catch (error) {
+    noticeType.value = 'error';
+    notice.value = error.message || `Could not ${action} this account.`;
+  }
+}
+
 onMounted(loadUsers);
 </script>
 
@@ -203,7 +238,7 @@ onMounted(loadUsers);
 .subtitle,.modal-subtitle { color: var(--text-muted); }
 .table-card { padding: 1.25rem; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.users-table { width: 100%; min-width: 740px; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
+.users-table { width: 100%; min-width: 840px; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
 .users-table th { padding: 0.75rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border-glass); white-space: nowrap; }
 .users-table td { padding: 0.8rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
 .user-row-info,.row-actions { display: flex; align-items: center; gap: 0.6rem; }
@@ -212,7 +247,7 @@ onMounted(loadUsers);
 .you-tag { color: var(--text-muted); font-size: 0.72rem; }
 .email-cell { overflow-wrap: anywhere; }
 .date-cell { white-space: nowrap; color: var(--text-muted); }
-.row-actions { justify-content: flex-end; }
+.row-actions { justify-content: flex-end; white-space: nowrap; }
 .actions-heading { text-align: right; }
 .table-state { padding: 2rem 1rem; text-align: center; color: var(--text-muted); }
 .notice { margin: 0 0 1rem; padding: 0.8rem 1rem; border-radius: var(--radius-sm); font-size: 0.88rem; }
@@ -226,6 +261,13 @@ onMounted(loadUsers);
 .user-form { display: flex; flex-direction: column; gap: 0.6rem; }
 .field-label { margin-top: 0.35rem; color: var(--text-main); font-size: 0.82rem; font-weight: 600; }
 .field-hint { margin: 0; color: var(--text-muted); font-size: 0.75rem; }
+.status-toggle { display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 0.9rem 1rem; border: 1px solid var(--border-glass); border-radius: var(--radius-sm); background: rgba(255,255,255,0.035); color: var(--text-main); text-align: left; cursor: pointer; }
+.status-toggle:disabled { cursor: not-allowed; opacity: 0.6; }
+.status-indicator { width: 14px; height: 14px; flex: 0 0 14px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,0.13); }
+.status-toggle.active .status-indicator { background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,0.13); }
+.status-copy { display: flex; flex: 1; flex-direction: column; }
+.status-copy strong { color: var(--text-white); font-size: 0.9rem; }
+.status-copy small { color: var(--text-muted); font-size: 0.75rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.65rem; margin-top: 1.1rem; }
 
 @media (max-width: 640px) {

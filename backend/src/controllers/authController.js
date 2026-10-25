@@ -41,13 +41,15 @@ function syncFirebaseUser(authUser, profile = {}) {
   } else {
     row = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (row) {
-      db.prepare('UPDATE users SET firebase_uid = ?, name = ?, role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run(authUser.uid, name, role, row.id);
+      db.prepare('UPDATE users SET firebase_uid = ?, name = ?, email = ?, role = ?, disabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(authUser.uid, name, email, role, authUser.disabled ? 1 : 0, row.id);
     } else {
-      db.prepare('INSERT INTO users (name, email, password, role, firebase_uid) VALUES (?, ?, ?, ?, ?)')
-        .run(name, email, '', role, authUser.uid);
+      db.prepare('INSERT INTO users (name, email, password, role, firebase_uid, disabled) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(name, email, '', role, authUser.uid, authUser.disabled ? 1 : 0);
     }
   }
+  db.prepare('UPDATE users SET disabled = ?, updated_at = CURRENT_TIMESTAMP WHERE firebase_uid = ?')
+    .run(authUser.disabled ? 1 : 0, authUser.uid);
 }
 
 async function listAllFirebaseUsers() {
@@ -85,14 +87,15 @@ async function listAllFirebaseUsers() {
   return authUsers
     .filter((user) => user.email)
     .map((user) => db.prepare(`
-      SELECT id, name, email, role, created_at FROM users WHERE firebase_uid = ?
+      SELECT id, name, email, role, created_at, disabled FROM users WHERE firebase_uid = ?
     `).get(user.uid))
     .filter(Boolean)
+    .map((user) => ({ ...user, disabled: Boolean(user.disabled) }))
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 }
 
 function adminCount() {
-  return db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND firebase_uid IS NOT NULL").get().count;
+  return db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND firebase_uid IS NOT NULL AND disabled = 0").get().count;
 }
 
 exports.listUsers = async (req, res) => {
@@ -120,12 +123,12 @@ exports.createUser = async (req, res) => {
     const authUser = await admin.auth().createUser({ email, password, displayName: name });
     try {
       await admin.firestore().collection('users').doc(authUser.uid).set({
-        uid: authUser.uid, name, email, role, createdAt: new Date(), updatedAt: new Date()
+        uid: authUser.uid, name, email, role, active: true, createdAt: new Date(), updatedAt: new Date()
       });
       const result = db.prepare(`
-        INSERT INTO users (name, email, password, role, firebase_uid) VALUES (?, ?, ?, ?, ?)
+        INSERT INTO users (name, email, password, role, firebase_uid, disabled) VALUES (?, ?, ?, ?, ?, 0)
       `).run(name, email, '', role, authUser.uid);
-      const user = db.prepare('SELECT id, name, email, role, created_at FROM users WHERE id = ?').get(result.lastInsertRowid);
+      const user = db.prepare('SELECT id, name, email, role, created_at, disabled FROM users WHERE id = ?').get(result.lastInsertRowid);
       return res.status(201).json({ success: true, user, message: 'User account created.' });
     } catch (error) {
       await admin.firestore().collection('users').doc(authUser.uid).delete().catch(() => {});
@@ -140,13 +143,17 @@ exports.createUser = async (req, res) => {
 
 async function updateManagedUser(req, res) {
   const { id } = req.params;
-  const current = db.prepare('SELECT id, firebase_uid, name, email, role FROM users WHERE id = ?').get(id);
+  const current = db.prepare('SELECT id, firebase_uid, name, email, role, disabled FROM users WHERE id = ?').get(id);
   if (!current) return res.status(404).json({ success: false, message: 'User not found.' });
   if (!current.firebase_uid) return res.status(409).json({ success: false, message: 'This account is not linked to Firebase Authentication.' });
 
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : current.name;
   const email = req.body.email === undefined ? current.email : normalizeEmail(req.body.email);
   const role = req.body.role === undefined ? current.role : req.body.role;
+  const admin = getFirebaseAdmin();
+  const authUser = await admin.auth().getUser(current.firebase_uid);
+  const disabled = req.body.disabled === undefined ? authUser.disabled : req.body.disabled;
+  if (typeof disabled !== 'boolean') return res.status(400).json({ success: false, message: 'Account status must be active or deactivated.' });
   if (!name || !email || !/^\S+@\S+\.\S+$/.test(email)) {
     return res.status(400).json({ success: false, message: 'Enter a name and valid email address.' });
   }
@@ -154,23 +161,29 @@ async function updateManagedUser(req, res) {
   if (String(req.user.id) === String(id) && role !== 'admin') {
     return res.status(409).json({ success: false, message: 'You cannot remove your own admin access here.' });
   }
+  if (String(req.user.id) === String(id) && disabled) {
+    return res.status(409).json({ success: false, message: 'You cannot deactivate your signed-in account.' });
+  }
   if (current.role === 'admin' && role !== 'admin' && adminCount() <= 1) {
     return res.status(409).json({ success: false, message: 'Keep at least one admin account.' });
   }
+  if (current.role === 'admin' && !authUser.disabled && disabled && adminCount() <= 1) {
+    return res.status(409).json({ success: false, message: 'Keep at least one active admin account.' });
+  }
 
-  const admin = getFirebaseAdmin();
   const userRef = admin.firestore().collection('users').doc(current.firebase_uid);
-  const authChanges = { displayName: name };
+  const authChanges = { displayName: name, disabled };
   if (email !== current.email) authChanges.email = email;
   await admin.auth().updateUser(current.firebase_uid, authChanges);
   try {
-    await userRef.set({ uid: current.firebase_uid, name, email, role, updatedAt: new Date() }, { merge: true });
-    db.prepare('UPDATE users SET name = ?, email = ?, role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(name, email, role, id);
+    if (disabled && !authUser.disabled) await admin.auth().revokeRefreshTokens(current.firebase_uid);
+    await userRef.set({ uid: current.firebase_uid, name, email, role, active: !disabled, updatedAt: new Date() }, { merge: true });
+    db.prepare('UPDATE users SET name = ?, email = ?, role = ?, disabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(name, email, role, disabled ? 1 : 0, id);
     return res.json({ success: true, message: 'User account updated.' });
   } catch (error) {
-    await userRef.set({ uid: current.firebase_uid, name: current.name, email: current.email, role: current.role, updatedAt: new Date() }, { merge: true }).catch(() => {});
-    await admin.auth().updateUser(current.firebase_uid, { displayName: current.name, email: current.email }).catch(() => {});
+    await userRef.set({ uid: current.firebase_uid, name: current.name, email: current.email, role: current.role, active: !authUser.disabled, updatedAt: new Date() }, { merge: true }).catch(() => {});
+    await admin.auth().updateUser(current.firebase_uid, { displayName: authUser.displayName || current.name, email: authUser.email || current.email, disabled: authUser.disabled }).catch(() => {});
     throw error;
   }
 }
@@ -196,11 +209,11 @@ exports.updateUserRole = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = db.prepare('SELECT id, firebase_uid, role FROM users WHERE id = ?').get(id);
+    const user = db.prepare('SELECT id, firebase_uid, role, disabled FROM users WHERE id = ?').get(id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
     if (!user.firebase_uid) return res.status(409).json({ success: false, message: 'This account is not linked to Firebase Authentication.' });
     if (String(req.user.id) === String(id)) return res.status(409).json({ success: false, message: 'You cannot delete your own account while signed in.' });
-    if (user.role === 'admin' && adminCount() <= 1) return res.status(409).json({ success: false, message: 'Keep at least one admin account.' });
+    if (user.role === 'admin' && !user.disabled && adminCount() <= 1) return res.status(409).json({ success: false, message: 'Keep at least one active admin account.' });
 
     const admin = getFirebaseAdmin();
     await admin.auth().deleteUser(user.firebase_uid);

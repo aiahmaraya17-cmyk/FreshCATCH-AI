@@ -25,6 +25,7 @@ function initializeDatabase() {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('consumer', 'vendor', 'admin', 'researcher')) DEFAULT 'consumer',
+      disabled INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -143,6 +144,9 @@ function initializeDatabase() {
   const userColumns = db.prepare('PRAGMA table_info(users)').all();
   if (!userColumns.some((column) => column.name === 'firebase_uid')) {
     db.exec('ALTER TABLE users ADD COLUMN firebase_uid TEXT');
+  }
+  if (!userColumns.some((column) => column.name === 'disabled')) {
+    db.exec('ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0');
   }
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_idx ON users(firebase_uid) WHERE firebase_uid IS NOT NULL');
 
