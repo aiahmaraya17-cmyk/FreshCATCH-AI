@@ -16,7 +16,7 @@ In Firebase project `freshcatch-ai`:
 
 1. Enable **Authentication → Sign-in method → Email/Password**.
 2. Create a Firestore database.
-3. Publish the root `firestore.rules` rules. They allow a signed-in user to manage only their own profile and prevent client-side role changes.
+3. Publish the root `firestore.rules` rules. From the repository root, run `npx firebase-tools deploy --only firestore:rules --project freshcatch-ai`, or paste `firestore.rules` into Firebase Console → Firestore Database → Rules and click **Publish**. They allow a signed-in user to manage only their own profile and prevent client-side role changes.
 4. Add the Vercel production domain under **Authentication → Settings → Authorized domains**.
 5. Create a service account under **Project settings → Service accounts** for the Render backend. Keep its private key secret.
 

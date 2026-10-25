@@ -1,7 +1,26 @@
 import { defineStore } from 'pinia';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, updatePassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, updatePassword, signOut } from 'firebase/auth';
 import { firebaseAuth } from '../services/firebase';
 import { getOrCreateUserProfile, updateUserProfile } from '../services/firebaseUsers';
+
+function readableAuthError(error, action) {
+  switch (error?.code) {
+    case 'auth/email-already-in-use':
+      return 'This email already has an account. Sign in or use Forgot password.';
+    case 'auth/invalid-email':
+      return 'Enter a valid email address.';
+    case 'auth/weak-password':
+      return 'Choose a password with at least 6 characters.';
+    case 'auth/operation-not-allowed':
+      return 'Email and password sign-up is disabled. Enable it in Firebase Authentication settings.';
+    case 'permission-denied':
+      return action === 'register'
+        ? 'The account may have been created, but Firestore blocked its profile. Publish the project Firestore rules, then sign in.'
+        : 'Firebase blocked access to your profile. Check that the Firestore rules are published.';
+    default:
+      return error?.message || `Could not ${action}. Please try again.`;
+  }
+}
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -63,8 +82,19 @@ export const useAuthStore = defineStore('auth', {
         await this.setFirebaseUser(credential.user);
         return { success: true };
       } catch (error) {
-        this.error = error.message;
-        return { success: false, message: error.message };
+        this.error = readableAuthError(error, 'sign in');
+        return { success: false, message: this.error };
+      } finally { this.isLoading = false; }
+    },
+    async sendPasswordReset(email) {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        await sendPasswordResetEmail(firebaseAuth, email.trim());
+        return { success: true };
+      } catch (error) {
+        this.error = readableAuthError(error, 'send password reset email');
+        return { success: false, message: this.error, code: error.code };
       } finally { this.isLoading = false; }
     },
     async register(name, email, password) {
@@ -76,8 +106,8 @@ export const useAuthStore = defineStore('auth', {
         await this.setFirebaseUser(credential.user, name.trim());
         return { success: true };
       } catch (error) {
-        this.error = error.message;
-        return { success: false, message: error.message };
+        this.error = readableAuthError(error, 'register');
+        return { success: false, message: this.error, code: error.code };
       } finally { this.isLoading = false; }
     },
     async updateProfile(name, password) {

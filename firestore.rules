@@ -4,11 +4,18 @@ service cloud.firestore {
     match /users/{uid} {
       allow create: if request.auth != null
         && request.auth.uid == uid
+        && request.resource.data.uid == uid
         && request.resource.data.role == 'consumer';
       allow read: if request.auth != null && request.auth.uid == uid;
       allow update: if request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.role == resource.data.role;
+        && request.resource.data.uid == uid
+        && (
+          request.resource.data.role == resource.data.role
+          || (!resource.data.keys().hasAny(['role']) && request.resource.data.role == 'consumer')
+        )
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['uid', 'name', 'email', 'role', 'createdAt', 'updatedAt']);
       allow delete: if false;
     }
   }

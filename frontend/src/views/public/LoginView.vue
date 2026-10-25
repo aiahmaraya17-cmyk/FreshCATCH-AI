@@ -42,6 +42,10 @@
           />
         </div>
 
+        <div class="forgot-row">
+          <button type="button" class="text-link" @click="openResetModal">Forgot password?</button>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-lg w-full" :disabled="isLoading">
           <span v-if="isLoading">Signing in...</span>
           <span v-else>Sign In</span>
@@ -52,6 +56,26 @@
         <span>Don't have an account yet? </span>
         <router-link to="/register" class="text-cyan font-bold">Sign Up</router-link>
       </div>
+    </div>
+
+    <div v-if="showResetModal" class="modal-backdrop" @click.self="closeResetModal" @keydown.esc="closeResetModal">
+      <section class="reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+        <button type="button" class="modal-close" aria-label="Close" @click="closeResetModal">&times;</button>
+        <h3 id="reset-title">Reset your password</h3>
+        <p class="subtitle">Enter the email address on your account. Firebase will send a password reset link.</p>
+        <div v-if="resetMessage" :class="resetSuccess ? 'success-alert' : 'error-alert'" role="status">
+          {{ resetMessage }}
+        </div>
+        <form class="auth-form" @submit.prevent="handlePasswordReset">
+          <div class="form-group">
+            <label for="reset-email">Email address</label>
+            <input id="reset-email" v-model="resetEmail" class="input-field" type="email" autocomplete="email" required placeholder="you@example.com" />
+          </div>
+          <button type="submit" class="btn btn-primary w-full" :disabled="resetLoading">
+            {{ resetLoading ? 'Sending…' : 'Send reset link' }}
+          </button>
+        </form>
+      </section>
     </div>
   </div>
 </template>
@@ -70,6 +94,38 @@ const email = ref('');
 const password = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
+const showResetModal = ref(false);
+const resetEmail = ref('');
+const resetLoading = ref(false);
+const resetMessage = ref('');
+const resetSuccess = ref(false);
+
+function openResetModal() {
+  resetEmail.value = email.value.trim();
+  resetMessage.value = '';
+  resetSuccess.value = false;
+  showResetModal.value = true;
+}
+
+function closeResetModal() {
+  showResetModal.value = false;
+}
+
+async function handlePasswordReset() {
+  resetLoading.value = true;
+  resetMessage.value = '';
+  resetSuccess.value = false;
+  const result = await authStore.sendPasswordReset(resetEmail.value);
+  resetLoading.value = false;
+  if (result.success) {
+    resetSuccess.value = true;
+    resetMessage.value = 'If an account exists for that email, Firebase will send a password reset link shortly.';
+  } else {
+    resetMessage.value = result.code === 'auth/invalid-email'
+      ? 'Enter a valid email address.'
+      : 'We could not send the reset email. Check your connection and try again.';
+  }
+}
 
 async function handleLogin() {
   isLoading.value = true;
@@ -137,6 +193,16 @@ async function handleLogin() {
 }
 
 .w-full { width: 100%; }
+
+.forgot-row { display: flex; justify-content: flex-end; margin-top: -0.65rem; }
+.text-link { padding: 0; border: 0; background: none; color: var(--primary); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.text-link:hover { text-decoration: underline; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(2, 8, 20, 0.72); }
+.reset-modal { position: relative; width: min(100%, 440px); padding: 2rem; border: 1px solid var(--border-glass); border-radius: var(--radius-md); background: var(--bg-card, #0d1b2a); box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45); }
+.reset-modal h3 { margin: 0 2rem 0.5rem 0; color: var(--text-white); }
+.reset-modal .subtitle { margin: 0 0 1.25rem; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
+.modal-close { position: absolute; top: 0.75rem; right: 0.9rem; border: 0; background: none; color: var(--text-muted); font-size: 1.7rem; cursor: pointer; }
+.success-alert { margin-bottom: 1rem; padding: 0.75rem 1rem; border: 1px solid rgba(34, 197, 94, 0.4); border-radius: var(--radius-sm); background: rgba(34, 197, 94, 0.12); color: #86efac; font-size: 0.85rem; }
 
 .demo-accounts-box {
   background: rgba(0, 0, 0, 0.3);
