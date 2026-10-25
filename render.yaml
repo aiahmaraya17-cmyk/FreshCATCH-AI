@@ -40,7 +40,7 @@ services:
         value: /data/freshcatch.db
       - key: UPLOAD_DIR
         value: /data/uploads
-      # Set this AFTER the Vercel frontend URL is known (no trailing slash).
-      # Example: https://freshcatch-ai.vercel.app
+      - key: DATASET_DIR
+        value: /data/dataset
       - key: CORS_ORIGINS
-        sync: false                  # prompt for the value in the dashboard
+        value: https://fresh-catch-ai.vercel.app

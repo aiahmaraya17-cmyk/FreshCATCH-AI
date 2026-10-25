@@ -53,7 +53,7 @@ Import the repository into Vercel and set **Root Directory** to `frontend`. Buil
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | `700006049129` |
 | `VITE_FIREBASE_APP_ID` | `1:700006049129:web:7a4aae56c6be2d434c49f8` |
 
-These Firebase web app values are public browser configuration; Firebase security rules and API key restrictions provide protection. The backend service account key is private and belongs only in Render.
+These Firebase web app values are public browser configuration; Firebase security rules and API key restrictions provide protection. They are also set as frontend defaults in the source, so Vercel can build without these overrides. Set them in Vercel if you want dashboard-managed configuration. The backend service account key is private and belongs only in Render.
 
 Once Vercel has deployed, add its URL to Render `CORS_ORIGINS`, save/redeploy the backend, then confirm `/api/health`, account registration/login, and a fish scan.
 
@@ -65,7 +65,7 @@ Copy `frontend/.env.example` to `frontend/.env.local`; it contains the Firebase 
 
 ### Vercel
 
-`VITE_API_BASE_URL` and all six `VITE_FIREBASE_*` values listed above. Vite embeds these into the browser build, so they must not contain secrets.
+`VITE_API_BASE_URL` and all six `VITE_FIREBASE_*` values listed above are optional overrides because the frontend includes the project’s public Firebase config and Render API URL as defaults. Vite embeds these into the browser build, so they must not contain secrets. After changing these values, redeploy the Vercel project.
 
 ### Render
 

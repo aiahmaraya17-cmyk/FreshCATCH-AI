@@ -1,7 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
-const bcrypt = require('bcryptjs');
 
 // DB location is configurable so production can point at a persistent disk
 // (e.g. Render disk mounted at /data → DATABASE_PATH=/data/freshcatch.db).
@@ -148,6 +147,7 @@ function initializeDatabase() {
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_idx ON users(firebase_uid) WHERE firebase_uid IS NOT NULL');
 
   runMigrations();
+  removeLegacyDemoAccounts();
   seedInitialData();
 }
 
@@ -166,41 +166,36 @@ function runMigrations() {
   }
 }
 
+/** Remove only the legacy local demo users, preserving all Firebase-linked users. */
+function removeLegacyDemoAccounts() {
+  const demoEmails = [
+    'consumer@freshcatch.ai',
+    'vendor@freshcatch.ai',
+    'admin@freshcatch.ai',
+    'researcher@freshcatch.ai'
+  ];
+  const emailParams = demoEmails.map(() => '?').join(', ');
+  const demoUsers = db.prepare(`
+    SELECT id FROM users
+    WHERE firebase_uid IS NULL AND email IN (${emailParams})
+  `).all(...demoEmails);
+  const userIds = demoUsers.map((user) => user.id);
+  if (userIds.length === 0) return;
+
+  const idParams = userIds.map(() => '?').join(', ');
+  const removeUsers = db.transaction(() => {
+    db.prepare(`UPDATE predictions SET user_id = NULL WHERE user_id IN (${idParams})`).run(...userIds);
+    db.prepare(`UPDATE error_analysis_logs SET reviewed_by = NULL WHERE reviewed_by IN (${idParams})`).run(...userIds);
+    db.prepare(`DELETE FROM stalls WHERE owner_id IN (${idParams})`).run(...userIds);
+    return db.prepare(`DELETE FROM users WHERE id IN (${idParams})`).run(...userIds).changes;
+  });
+  const removed = removeUsers();
+  console.log(`Removed ${removed} legacy demo account(s).`);
+}
+
 function seedInitialData() {
-  // 1. Seed Users
-  const userCount = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
-  if (userCount === 0) {
-    const salt = bcrypt.genSaltSync(10);
-    const insertUser = db.prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
-
-    insertUser.run('Elena Santos (Consumer)', 'consumer@freshcatch.ai', bcrypt.hashSync('password123', salt), 'consumer');
-    insertUser.run('Mang Berting (Fish Vendor - Roxas Public Market)', 'vendor@freshcatch.ai', bcrypt.hashSync('password123', salt), 'vendor');
-    insertUser.run('System Administrator', 'admin@freshcatch.ai', bcrypt.hashSync('admin123', salt), 'admin');
-    insertUser.run('Dr. Aris Rodriguez (Fisheries Researcher)', 'researcher@freshcatch.ai', bcrypt.hashSync('research123', salt), 'researcher');
-    console.log('Default users seeded successfully.');
-  }
-
-  // 1b. Seed a demo stall owned by the vendor account
-  const stallCount = db.prepare('SELECT COUNT(*) AS count FROM stalls').get().count;
-  if (stallCount === 0) {
-    const vendor = db.prepare("SELECT id FROM users WHERE email = 'vendor@freshcatch.ai'").get();
-    if (vendor) {
-      db.prepare(`
-        INSERT INTO stalls (owner_id, name, market_name, section, description, contact_number)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
-        vendor.id,
-        "Mang Berting's Fresh Catch",
-        'Roxas Public Market',
-        'Wet Section — Stall 14',
-        'Daily fresh catch from Tablas Strait. Bangus, galunggong, tulingan, and more.',
-        '0917-000-0000'
-      );
-      console.log('Demo vendor stall seeded.');
-    }
-  }
-
-  // 2. Seed Fish Species (Roxas, Oriental Mindoro)
+  // Seed reference data required by the API; never seed user accounts.
+  // Fish species (Roxas, Oriental Mindoro)
   const speciesCount = db.prepare('SELECT COUNT(*) AS count FROM fish_species').get().count;
   if (speciesCount === 0) {
     const insertSpecies = db.prepare('INSERT INTO fish_species (name, local_name, scientific_name, description) VALUES (?, ?, ?, ?)');

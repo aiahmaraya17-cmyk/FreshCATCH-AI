@@ -27,7 +27,7 @@
             v-model="email" 
             type="email" 
             class="input-field" 
-            placeholder="e.g. consumer@freshcatch.ai" 
+            placeholder="you@example.com"
             required 
           />
         </div>

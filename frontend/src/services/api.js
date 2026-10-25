@@ -4,7 +4,8 @@
 //    e.g. https://freshcatch-api.onrender.com  (no trailing slash, no /api).
 import { firebaseAuth } from './firebase';
 
-export const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const defaultApiOrigin = import.meta.env.PROD ? 'https://freshcatch-api.onrender.com' : '';
+export const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || defaultApiOrigin).replace(/\/$/, '');
 const API_BASE = `${API_ORIGIN}/api`;
 
 /**

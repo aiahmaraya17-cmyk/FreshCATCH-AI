@@ -57,14 +57,9 @@ def run_all_tests():
     status, body = test_endpoint(f"{BASE_URL}/health")
     print_test("Backend API Health Endpoint", status == 200 and body.get("status") == "healthy", f"({body.get('project')})")
 
-    # 3. User Authentication (Login as Researcher)
-    status, login_res = test_endpoint(f"{BASE_URL}/auth/login", method="POST", data={
-        "email": "researcher@freshcatch.ai",
-        "password": "research123"
-    })
-    token = login_res.get("token") if isinstance(login_res, dict) else None
-    print_test("User Authentication (Login)", status == 200 and bool(token), f"Token obtained: {bool(token)}")
-
+    # 3. Authentication uses a Firebase ID token supplied by the tester.
+    token = os.environ.get("TEST_FIREBASE_ID_TOKEN")
+    print_test("Firebase ID token configured", bool(token))
     auth_headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     # 4. Fish Species Catalog
