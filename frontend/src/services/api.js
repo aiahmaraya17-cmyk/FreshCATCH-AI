@@ -47,13 +47,21 @@ class ApiService {
         headers
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+      const data = isJson ? await response.json() : await response.text();
       if (!response.ok) {
-        const err = new Error(data.message || `Request failed with status ${response.status}`);
+        const message = isJson
+          ? (data.message || `Request failed with status ${response.status}`)
+          : response.status === 404
+            ? 'This API route is not available on the current backend deployment. Deploy the latest main commit to Render and try again.'
+            : `The backend returned an unexpected response (HTTP ${response.status}).`;
+        const err = new Error(message);
         err.status = response.status;
         err.body = data;              // preserve full structured response (not_fish, quality_check, reasons)
         throw err;
       }
+      if (!isJson) throw new Error('The backend returned a non-JSON response. Check the Render deployment and API URL.');
       return data;
     } catch (err) {
       console.error(`API Error on [${endpoint}]:`, err);
