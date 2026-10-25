@@ -134,14 +134,14 @@
 
         <!-- Nav links -->
         <nav class="drawer-nav">
-          <router-link v-if="authStore.isAuthenticated" to="/dashboard" class="drawer-link" @click="closeDrawer">
+          <router-link v-if="authStore.isAuthenticated" :to="authStore.isResearcher ? '/admin' : '/dashboard'" class="drawer-link" @click="closeDrawer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             Dashboard
           </router-link>
 
-          <router-link v-if="authStore.isResearcher" to="/admin" class="drawer-link drawer-link-teal" @click="closeDrawer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-            {{ t('nav.admin') }}
+          <router-link v-if="authStore.isAdmin" to="/admin/users" class="drawer-link drawer-link-teal" @click="closeDrawer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Manage Users
           </router-link>
 
           <router-link to="/"          class="drawer-link" active-class="drawer-active" exact @click="closeDrawer">

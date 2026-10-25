@@ -91,6 +91,18 @@ class ApiService {
     return this.request('/auth/users');
   }
 
+  static createManagedUser(userData) {
+    return this.request('/auth/users', { method: 'POST', body: JSON.stringify(userData) });
+  }
+
+  static updateManagedUser(userId, userData) {
+    return this.request(`/auth/users/${userId}`, { method: 'PUT', body: JSON.stringify(userData) });
+  }
+
+  static deleteManagedUser(userId) {
+    return this.request(`/auth/users/${userId}`, { method: 'DELETE' });
+  }
+
   static updateUserRole(userId, role) {
     return this.request(`/auth/users/${userId}/role`, {
       method: 'PUT',

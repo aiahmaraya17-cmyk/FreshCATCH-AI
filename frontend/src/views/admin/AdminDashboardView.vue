@@ -113,6 +113,12 @@
         <h4>Reports & Data Export</h4>
         <p>Generate research summaries and export dataset/predictions as CSV/JSON</p>
       </router-link>
+
+      <router-link v-if="authStore.isAdmin" to="/admin/users" class="glass-card admin-nav-card">
+        <div class="nav-card-icon">Users</div>
+        <h4>Manage Users</h4>
+        <p>Create accounts, update user details and roles, or remove accounts</p>
+      </router-link>
     </div>
   </div>
 </template>
@@ -120,6 +126,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import ApiService from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
+
+const authStore = useAuthStore();
 
 const stats = ref({
   totalUsers: 4,
