@@ -354,45 +354,8 @@ function seedInitialData() {
     }
   }
 
-  // 6. Seed Sample Predictions for demo history
-  const predCount = db.prepare('SELECT COUNT(*) AS count FROM predictions').get().count;
-  if (predCount === 0) {
-    const insertPred = db.prepare(`
-      INSERT INTO predictions 
-      (user_id, species_id, image_url, classification, confidence, class_probabilities, visual_indicators, recommendation, recommendation_tagalog, quality_metrics, model_version, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    insertPred.run(
-      1, 1, '/dataset/raw/fish_0001_bangus_fresh_bright.jpg', 'Fresh', 0.924,
-      JSON.stringify({ 'Fresh': 0.924, 'Moderately Fresh': 0.052, 'Less Fresh': 0.016, 'Not Fresh': 0.008 }),
-      JSON.stringify([
-        { region: 'Eyes', label: 'Clear, convex cornea with distinct pupil', status: 'fresh' },
-        { region: 'Gills', label: 'Vibrant red / pink opercular coloration', status: 'fresh' },
-        { region: 'Skin & Scales', label: 'Natural metallic sheen and intact tight scales', status: 'fresh' }
-      ]),
-      'The fish appears visually fresh based on the trained model. Highly suitable for raw preparation (kinilaw), sinigang, grilling, and steaming.',
-      'Ang isda ay mukhang sariwa ayon sa AI model. Angkop na angkop sa kinilaw, sinigang, inihaw, o pasingaw.',
-      JSON.stringify({ blur_variance: 142.5, brightness_mean: 184.2, contrast_std: 42.1 }),
-      'FreshCatch-CNN-v1.0-MobileNetV2',
-      '2026-08-19 08:30:00'
-    );
-
-    insertPred.run(
-      2, 2, '/dataset/raw/fish_0025_tilapia_moderately_fresh_normal.jpg', 'Moderately Fresh', 0.841,
-      JSON.stringify({ 'Fresh': 0.089, 'Moderately Fresh': 0.841, 'Less Fresh': 0.051, 'Not Fresh': 0.019 }),
-      JSON.stringify([
-        { region: 'Eyes', label: 'Slight flattening of cornea with mild haze', status: 'moderate' },
-        { region: 'Gills', label: 'Slightly dull red gill coloration', status: 'moderate' },
-        { region: 'Skin & Scales', label: 'Moderate scale luster with slight color fading', status: 'moderate' }
-      ]),
-      'The fish exhibits moderate freshness. Recommended for prompt cooking methods such as frying, paksiw, escabeche, or sarciado.',
-      'Katamtamang sariwa ang isda. Mainam lutuin agad gaya ng prito, paksiw, o escabeche.',
-      JSON.stringify({ blur_variance: 98.4, brightness_mean: 145.0, contrast_std: 38.6 }),
-      'FreshCatch-CNN-v1.0-MobileNetV2',
-      '2026-08-18 14:15:00'
-    );
-  }
+  // Predictions are user-generated. Never seed demo history with hard-coded
+  // user IDs: accounts are created in Firebase and may not exist during boot.
 }
 
 initializeDatabase();
