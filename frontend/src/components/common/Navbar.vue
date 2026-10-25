@@ -20,25 +20,29 @@
       </router-link>
 
       <!-- Desktop links -->
-      <ul class="nav-links desktop-only">
-        <li><router-link to="/"           class="nav-link" active-class="active" exact>{{ t('nav.home') }}</router-link></li>
+      <ul class="nav-links desktop-only" aria-label="Main navigation">
+        <li><router-link to="/" class="nav-link" exact-active-class="active">{{ t('nav.home') }}</router-link></li>
         <li>
           <router-link to="/analyze" class="nav-link" active-class="active">
             <span class="live-dot"></span>{{ t('nav.analyze') }}
           </router-link>
         </li>
-        <li><router-link to="/guide"         class="nav-link" active-class="active">{{ t('nav.guide') }}</router-link></li>
-        <li><router-link to="/how-it-works"  class="nav-link" active-class="active">{{ t('nav.howItWorks') }}</router-link></li>
-        <li><router-link to="/about"         class="nav-link" active-class="active">{{ t('nav.about') }}</router-link></li>
-        <li><router-link to="/stalls"        class="nav-link" active-class="active">Stalls</router-link></li>
-        <li v-if="authStore.isAuthenticated">
-          <router-link to="/history" class="nav-link" active-class="active">{{ t('nav.history') }}</router-link>
-        </li>
-        <li v-if="authStore.isVendor">
-          <router-link to="/my-stall" class="nav-link" active-class="active">My Stall</router-link>
-        </li>
-        <li v-if="authStore.isResearcher">
-          <router-link to="/admin" class="nav-link admin-nav-pill" active-class="active">{{ t('nav.admin') }}</router-link>
+        <li><router-link to="/stalls" class="nav-link" active-class="active">{{ t('nav.stalls') }}</router-link></li>
+        <li>
+          <details ref="desktopMoreMenu" class="nav-more" :class="{ 'nav-more-active': moreIsActive }">
+            <summary class="nav-link nav-more-trigger" :class="{ active: moreIsActive }">
+              {{ t('nav.more') }}<span class="chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="nav-more-menu">
+              <router-link to="/guide" class="nav-dropdown-link" active-class="active" @click="closeDesktopMore">{{ t('nav.guide') }}</router-link>
+              <router-link to="/how-it-works" class="nav-dropdown-link" active-class="active" @click="closeDesktopMore">{{ t('nav.howItWorks') }}</router-link>
+              <router-link to="/about" class="nav-dropdown-link" active-class="active" @click="closeDesktopMore">{{ t('nav.about') }}</router-link>
+              <router-link v-if="authStore.isAuthenticated" to="/history" class="nav-dropdown-link" active-class="active" @click="closeDesktopMore">{{ t('nav.history') }}</router-link>
+              <router-link v-if="authStore.isAuthenticated" to="/profile" class="nav-dropdown-link" active-class="active" @click="closeDesktopMore">{{ t('nav.profile') }}</router-link>
+              <router-link v-if="authStore.isVendor" to="/my-stall" class="nav-dropdown-link" active-class="active" @click="closeDesktopMore">{{ t('nav.myStall') }}</router-link>
+              <router-link v-if="authStore.isAdmin" to="/admin/users" class="nav-dropdown-link" active-class="active" @click="closeDesktopMore">{{ t('nav.manageUsers') }}</router-link>
+            </div>
+          </details>
         </li>
       </ul>
 
@@ -50,7 +54,7 @@
 
         <template v-if="authStore.isAuthenticated">
           <div class="user-pill-container">
-            <router-link to="/dashboard" class="user-chip">
+            <router-link :to="dashboardPath" class="user-chip" :class="{ 'user-chip-active': dashboardIsActive }">
               <div class="user-avatar">{{ authStore.userName?.charAt(0) || '?' }}</div>
               <div class="user-info-text">
                 <span class="user-name">{{ authStore.userName?.split(' ')[0] }}</span>
@@ -112,10 +116,10 @@
 
         <!-- Drawer header -->
         <div class="drawer-header">
-          <div class="brand-logo">
+          <router-link to="/" class="brand-logo drawer-brand" @click="closeDrawer">
             <div class="logo-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-cyan"><path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.46-3.44 6-7 6s-7.56-2.54-8.5-6Z"/><path d="M18 12h.01"/></svg></div>
             <span>FreshCatch<span class="text-cyan"> AI</span></span>
-          </div>
+          </router-link>
           <button class="drawer-close" @click="closeDrawer" aria-label="Close menu">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -133,56 +137,46 @@
         </div>
 
         <!-- Nav links -->
-        <nav class="drawer-nav">
-          <router-link v-if="authStore.isAuthenticated" :to="authStore.isResearcher ? '/admin' : '/dashboard'" class="drawer-link" @click="closeDrawer">
+        <nav class="drawer-nav" aria-label="Mobile navigation">
+          <template v-if="authStore.isAuthenticated">
+            <p class="drawer-section-label">{{ t('nav.workspace') }}</p>
+            <router-link :to="dashboardPath" class="drawer-link" :class="{ 'drawer-active': dashboardIsActive }">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            Dashboard
-          </router-link>
+              {{ t('nav.dashboard') }}
+            </router-link>
 
-          <router-link v-if="authStore.isAdmin" to="/admin/users" class="drawer-link drawer-link-teal" @click="closeDrawer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Manage Users
-          </router-link>
+            <router-link v-if="authStore.isAuthenticated" to="/history" class="drawer-link" active-class="drawer-active">{{ t('nav.history') }}</router-link>
+            <router-link v-if="authStore.isVendor" to="/my-stall" class="drawer-link" active-class="drawer-active">{{ t('nav.myStall') }}</router-link>
+            <router-link v-if="authStore.isAdmin" to="/admin/users" class="drawer-link" active-class="drawer-active">{{ t('nav.manageUsers') }}</router-link>
+          </template>
 
-          <router-link to="/"          class="drawer-link" active-class="drawer-active" exact @click="closeDrawer">
+          <p class="drawer-section-label">{{ t('nav.explore') }}</p>
+          <router-link to="/" class="drawer-link" exact-active-class="drawer-active">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             {{ t('nav.home') }}
           </router-link>
 
-          <router-link to="/analyze"   class="drawer-link drawer-link-primary" @click="closeDrawer">
+          <router-link to="/analyze" class="drawer-link drawer-link-primary" active-class="drawer-active">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <span class="flex-center gap-1"><span class="live-dot"></span>{{ t('nav.analyze') }}</span>
           </router-link>
 
-          <router-link to="/guide"        class="drawer-link" @click="closeDrawer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            {{ t('nav.guide') }}
-          </router-link>
-
-          <router-link to="/how-it-works" class="drawer-link" @click="closeDrawer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            {{ t('nav.howItWorks') }}
-          </router-link>
-
-          <router-link to="/about"        class="drawer-link" @click="closeDrawer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            {{ t('nav.about') }}
-          </router-link>
-
-          <router-link to="/stalls"       class="drawer-link" @click="closeDrawer">
+          <router-link to="/stalls" class="drawer-link" active-class="drawer-active">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 21v-6h6v6"/></svg>
-            Stalls
+            {{ t('nav.stalls') }}
           </router-link>
 
-          <router-link v-if="authStore.isVendor" to="/my-stall" class="drawer-link" @click="closeDrawer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><circle cx="12" cy="15" r="2"/></svg>
-            My Stall
-          </router-link>
-
-          <router-link v-if="authStore.isAuthenticated" to="/history" class="drawer-link" @click="closeDrawer">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            {{ t('nav.history') }}
-          </router-link>
+          <details ref="mobileMoreMenu" class="drawer-more" :class="{ 'drawer-more-active': moreIsActive }">
+            <summary class="drawer-link drawer-more-trigger" :class="{ 'drawer-active': moreIsActive }">
+              <span>{{ t('nav.more') }}</span><span class="chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="drawer-submenu">
+              <router-link to="/guide" class="drawer-link" active-class="drawer-active">{{ t('nav.guide') }}</router-link>
+              <router-link to="/how-it-works" class="drawer-link" active-class="drawer-active">{{ t('nav.howItWorks') }}</router-link>
+              <router-link to="/about" class="drawer-link" active-class="drawer-active">{{ t('nav.about') }}</router-link>
+              <router-link v-if="authStore.isAuthenticated" to="/profile" class="drawer-link" active-class="drawer-active">{{ t('nav.profile') }}</router-link>
+            </div>
+          </details>
 
         </nav>
 
@@ -208,13 +202,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import { translations } from '../../i18n/translations';
 
 const authStore = useAuthStore();
 const router    = useRouter();
+const route = useRoute();
+const desktopMoreMenu = ref(null);
+const dashboardPath = computed(() => authStore.isResearcher ? '/admin' : '/dashboard');
+const dashboardIsActive = computed(() => route.path === '/dashboard'
+  || (authStore.isResearcher && route.path.startsWith('/admin') && route.path !== '/admin/users'));
+const moreIsActive = computed(() => ['/guide', '/how-it-works', '/about', '/history', '/profile', '/my-stall', '/admin/users']
+  .some((path) => route.path === path || route.path.startsWith(`${path}/`)));
+
+function closeDesktopMore() {
+  if (desktopMoreMenu.value) desktopMoreMenu.value.open = false;
+}
 
 // ── Drawer state ───────────────────────────────────────────────────────────
 const drawerOpen = ref(false);
@@ -223,7 +228,10 @@ function toggleDrawer() { drawerOpen.value = !drawerOpen.value; }
 function closeDrawer()  { drawerOpen.value = false; }
 
 // Close drawer on route change
-router.afterEach(() => closeDrawer());
+router.afterEach(() => {
+  closeDrawer();
+  closeDesktopMore();
+});
 
 // Close drawer / prevent scroll on body when open
 watch(drawerOpen, (open) => {
@@ -319,15 +327,46 @@ function handleLogout() {
 
 /* ── Desktop nav links ────────────────────────────────────────────────────── */
 .nav-links {
-  display: flex; align-items: center; gap: 1.35rem;
+  display: flex; align-items: center; gap: clamp(0.35rem, 1vw, 1rem);
   list-style: none; flex: 1; justify-content: center;
 }
 .nav-link {
   display: inline-flex; align-items: center; gap: 0.35rem;
-  font-size: 0.9rem; font-weight: 500; color: var(--text-muted);
-  transition: color 0.18s; white-space: nowrap;
+  min-height: 2.5rem; padding: 0.45rem 0.65rem;
+  border-radius: 0.65rem;
+  font-size: 0.88rem; font-weight: 500; color: var(--text-muted);
+  transition: color 0.18s, background 0.18s, box-shadow 0.18s; white-space: nowrap;
 }
-.nav-link:hover, .nav-link.active { color: var(--primary); }
+.nav-link:hover { color: var(--primary); background: rgba(14,165,233,0.08); }
+.nav-link.active {
+  color: var(--primary);
+  background: rgba(14,165,233,0.12);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+.nav-more { position: relative; }
+.nav-more > summary { list-style: none; cursor: pointer; }
+.nav-more > summary::-webkit-details-marker { display: none; }
+.chevron {
+  width: 0.45rem; height: 0.45rem; margin: -0.2rem 0 0 0.2rem;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg); transition: transform 0.18s;
+}
+.nav-more[open] .chevron, .drawer-more[open] .chevron { transform: rotate(225deg); margin-top: 0.2rem; }
+.nav-more-menu {
+  position: absolute; top: calc(100% + 0.55rem); left: 0; z-index: 1010;
+  display: grid; min-width: 13rem; padding: 0.45rem;
+  border: 1px solid var(--border-glass); border-radius: 0.85rem;
+  background: rgba(9,17,38,0.98); box-shadow: 0 16px 36px rgba(0,0,0,0.38);
+}
+.nav-dropdown-link {
+  padding: 0.7rem 0.8rem; border-radius: 0.55rem;
+  color: var(--text-muted); font-size: 0.88rem; text-decoration: none;
+  white-space: nowrap; transition: background 0.18s, color 0.18s;
+}
+.nav-dropdown-link:hover, .nav-dropdown-link.active { color: var(--primary); background: rgba(14,165,233,0.12); }
+.nav-link:focus-visible, .nav-dropdown-link:focus-visible, .drawer-link:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 2px;
+}
 
 .admin-nav-pill {
   background: rgba(20,184,166,0.15); color: var(--accent-teal) !important;
@@ -353,6 +392,7 @@ function handleLogout() {
   background: var(--bg-glass); border: 1px solid var(--border-glass);
   padding: 0.28rem 0.6rem; border-radius: var(--radius-full); text-decoration: none;
 }
+.user-chip-active { border-color: rgba(14,165,233,0.65); background: rgba(14,165,233,0.13); }
 .user-avatar {
   width: 26px; height: 26px;
   background: linear-gradient(135deg, var(--primary), var(--accent-teal));
@@ -465,6 +505,11 @@ function handleLogout() {
   display: flex; flex-direction: column; gap: 0.15rem;
   padding: 0.75rem 0.75rem; flex: 1;
 }
+.drawer-section-label {
+  margin: 0.35rem 0 0.2rem; padding: 0.35rem 1rem 0.15rem;
+  color: var(--text-dim); font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
 .drawer-link {
   display: flex; align-items: center; gap: 0.85rem;
   padding: 0.85rem 1rem; border-radius: var(--radius-sm);
@@ -474,6 +519,11 @@ function handleLogout() {
 .drawer-link:hover, .drawer-link.drawer-active {
   background: rgba(14,165,233,0.1); color: var(--primary);
 }
+.drawer-link.drawer-active { box-shadow: inset 3px 0 0 var(--primary); background: rgba(14,165,233,0.16); }
+.drawer-more > summary { list-style: none; cursor: pointer; justify-content: space-between; }
+.drawer-more > summary::-webkit-details-marker { display: none; }
+.drawer-submenu { padding-left: 0.75rem; border-left: 1px solid var(--border-glass); margin-left: 1.15rem; }
+.drawer-submenu .drawer-link { padding-block: 0.7rem; font-size: 0.9rem; }
 .drawer-link-primary { color: var(--primary) !important; }
 .drawer-link-primary:hover { background: rgba(14,165,233,0.15) !important; }
 .drawer-link-teal { color: var(--accent-teal) !important; }
