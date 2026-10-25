@@ -437,7 +437,7 @@ function handleLogout() {
 }
 
 /* ── Hamburger button ────────────────────────────────────────────────────── */
-.mobile-right { display: flex; align-items: center; gap: 0.6rem; }
+.mobile-right { align-items: center; gap: 0.6rem; }
 .hamburger {
   display: flex; flex-direction: column; justify-content: center;
   gap: 5px; width: 40px; height: 40px; padding: 8px;

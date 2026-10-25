@@ -1,12 +1,12 @@
 <template>
   <div class="dataset-view container">
     <div class="page-header flex-between">
-      <div>
+      <div class="dataset-heading-copy">
         <span class="badge badge-cyan">Research Image Repository</span>
         <h1>CNN Dataset Management</h1>
-        <p class="subtitle">160+ labeled Roxas wet market specimens across 4 freshness categories and environmental conditions</p>
+        <p class="subtitle">Browse and filter labeled fish images by species, freshness, lighting, and dataset split.</p>
       </div>
-      <router-link to="/admin/dataset/new" class="btn btn-primary btn-sm">
+      <router-link to="/admin/dataset/new" class="btn btn-primary btn-sm dataset-add-button">
         + Add New Specimen
       </router-link>
     </div>
@@ -19,22 +19,22 @@
           @input="debounceFetch" 
           type="text" 
           class="input-field" 
-          placeholder="Search by filename, species, or market stall..." 
+          placeholder="Search filename, species, or stall"
         />
-        <select v-model="selectedSplit" @change="fetchDataset" class="input-field">
+        <select v-model="selectedSplit" @change="applyFilters" class="input-field">
           <option value="">All Splits (Train/Val/Test)</option>
           <option value="train">Training (70%)</option>
           <option value="validation">Validation (15%)</option>
           <option value="test">Testing (15%)</option>
         </select>
-        <select v-model="selectedCategory" @change="fetchDataset" class="input-field">
+        <select v-model="selectedCategory" @change="applyFilters" class="input-field">
           <option value="">All Freshness Classes</option>
           <option value="1">Fresh (Sariwa)</option>
           <option value="2">Moderately Fresh</option>
           <option value="3">Less Fresh</option>
           <option value="4">Not Fresh (Bilasa)</option>
         </select>
-        <select v-model="selectedLighting" @change="fetchDataset" class="input-field">
+        <select v-model="selectedLighting" @change="applyFilters" class="input-field">
           <option value="">All Lighting Conditions</option>
           <option value="Bright">Bright Lighting</option>
           <option value="Normal">Normal Lighting</option>
@@ -43,9 +43,25 @@
       </div>
     </div>
 
+    <div class="dataset-results-bar" aria-live="polite">
+      <span v-if="isLoading">Loading specimens…</span>
+      <span v-else-if="loadError">Dataset could not be loaded.</span>
+      <span v-else>Showing {{ visibleStart }}–{{ visibleEnd }} of {{ datasetTotal }} specimens</span>
+      <div v-if="datasetTotal > pageSize && !loadError" class="pagination-controls">
+        <button class="btn btn-secondary btn-sm" :disabled="offset === 0 || isLoading" @click="previousPage">Previous</button>
+        <span>Page {{ currentPage }} of {{ totalPages }}</span>
+        <button class="btn btn-secondary btn-sm" :disabled="offset + pageSize >= datasetTotal || isLoading" @click="nextPage">Next</button>
+      </div>
+    </div>
+
     <!-- Dataset Grid / Gallery -->
     <div v-if="isLoading" class="loading-state text-center">
       <p>Loading dataset specimens...</p>
+    </div>
+
+    <div v-else-if="loadError" class="glass-card empty-state text-center" role="alert">
+      <p>{{ loadError }}</p>
+      <button class="btn btn-secondary btn-sm" @click="fetchDataset">Retry</button>
     </div>
 
     <div v-else-if="images.length === 0" class="glass-card empty-state text-center">
@@ -117,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import ApiService, { mediaUrl } from '../../services/api';
 
 const images = ref([]);
@@ -127,19 +143,49 @@ const selectedCategory = ref('');
 const selectedLighting = ref('');
 const isLoading = ref(false);
 const selectedModalImg = ref(null);
+const datasetTotal = ref(0);
+const offset = ref(0);
+const pageSize = 60;
+const loadError = ref('');
+let activeRequest = 0;
+
+const currentPage = computed(() => Math.floor(offset.value / pageSize) + 1);
+const totalPages = computed(() => Math.max(1, Math.ceil(datasetTotal.value / pageSize)));
+const visibleStart = computed(() => datasetTotal.value ? offset.value + 1 : 0);
+const visibleEnd = computed(() => Math.min(offset.value + images.value.length, datasetTotal.value));
 
 let debounceTimer = null;
 function debounceFetch() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
+    offset.value = 0;
     fetchDataset();
   }, 300);
 }
 
+function applyFilters() {
+  offset.value = 0;
+  fetchDataset();
+}
+
+function previousPage() {
+  offset.value = Math.max(0, offset.value - pageSize);
+  fetchDataset();
+}
+
+function nextPage() {
+  if (offset.value + pageSize < datasetTotal.value) {
+    offset.value += pageSize;
+    fetchDataset();
+  }
+}
+
 async function fetchDataset() {
+  const requestId = ++activeRequest;
   isLoading.value = true;
+  loadError.value = '';
   try {
-    const params = { limit: 60 };
+    const params = { limit: pageSize, offset: offset.value };
     if (searchQuery.value) params.search = searchQuery.value;
     if (selectedSplit.value) params.split = selectedSplit.value;
     if (selectedCategory.value) params.freshness_id = selectedCategory.value;
@@ -147,12 +193,18 @@ async function fetchDataset() {
 
     const res = await ApiService.getDataset(params);
     if (res.success) {
-      images.value = res.images || [];
+      if (requestId === activeRequest) {
+        images.value = res.images || [];
+        datasetTotal.value = Number(res.total) || 0;
+      }
+    } else {
+      throw new Error('The API did not return dataset results.');
     }
   } catch (e) {
     console.error('Failed to load dataset:', e);
+    if (requestId === activeRequest) loadError.value = 'Could not load dataset images. Check the API connection and try again.';
   } finally {
-    isLoading.value = false;
+    if (requestId === activeRequest) isLoading.value = false;
   }
 }
 
@@ -171,7 +223,7 @@ onMounted(() => {
 
 <style scoped>
 .dataset-view {
-  padding: 3rem 1.25rem;
+  padding: clamp(1.5rem, 4vw, 3rem) 1.25rem;
 }
 
 .flex-between {
@@ -191,6 +243,18 @@ onMounted(() => {
   gap: 0.85rem;
 }
 
+.dataset-heading-copy { min-width: 0; }
+.dataset-heading-copy h1 { margin: 0.5rem 0; }
+.dataset-heading-copy .subtitle { max-width: 680px; }
+.dataset-add-button { flex: 0 0 auto; }
+.dataset-results-bar {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  margin: -0.75rem 0 1rem; color: var(--text-muted); font-size: 0.82rem;
+}
+.pagination-controls { display: flex; align-items: center; gap: 0.65rem; }
+.pagination-controls span { white-space: nowrap; font-size: 0.75rem; }
+.pagination-controls .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
 @media (max-width: 900px) {
   .filters-grid {
     grid-template-columns: 1fr 1fr;
@@ -201,6 +265,20 @@ onMounted(() => {
   .filters-grid {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 768px) {
+  .dataset-view { padding: 1.5rem 1rem 3rem; }
+  .dataset-view .page-header { align-items: stretch; flex-direction: column; gap: 1rem; }
+  .dataset-view .page-header h1 { font-size: clamp(1.7rem, 7vw, 2.2rem); overflow-wrap: anywhere; }
+  .dataset-add-button { justify-content: center; width: 100%; }
+  .dataset-results-bar { align-items: flex-start; flex-direction: column; margin-top: -0.5rem; }
+}
+
+@media (max-width: 380px) {
+  .dataset-view { padding-inline: 0.75rem; }
+  .filters-card { padding: 0.85rem; }
+  .pagination-controls { width: 100%; justify-content: space-between; gap: 0.35rem; }
 }
 
 .dataset-grid {

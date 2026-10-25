@@ -86,10 +86,10 @@
         </div>
         <div v-if="!statsLoaded" class="chart-empty">Loading scan records…</div>
         <div v-else-if="loadError" class="chart-empty">Scan activity is currently unavailable.</div>
-        <div v-else-if="hasActivity" class="chart-canvas activity-canvas">
+        <div v-else class="chart-canvas activity-canvas" role="img" aria-label="Line chart of daily recorded fish scans">
           <Line :data="activityChartData" :options="lineChartOptions" />
         </div>
-        <div v-else class="chart-empty">No scan records have been recorded yet.</div>
+        <p v-if="statsLoaded && !loadError && !hasActivity" class="chart-footnote">No scans were recorded in this period; the chart shows zero activity.</p>
       </article>
 
       <article class="glass-card analytics-card distribution-card">
@@ -98,10 +98,13 @@
         </div>
         <div v-if="!statsLoaded" class="chart-empty">Loading scan records…</div>
         <div v-else-if="loadError" class="chart-empty">Freshness distribution is currently unavailable.</div>
-        <div v-else-if="hasClassifications" class="chart-canvas doughnut-canvas">
+        <div v-else-if="hasClassifications" class="chart-canvas doughnut-canvas" role="img" aria-label="Doughnut chart of recorded freshness outcomes">
           <Doughnut :data="distributionChartData" :options="doughnutChartOptions" />
         </div>
-        <div v-else class="chart-empty">Outcome data will appear after scans are recorded.</div>
+        <div v-else class="chart-empty distribution-empty">
+          <div class="empty-donut"><span>{{ stats.totalPredictions }}<small>scans</small></span></div>
+          <p>No outcomes recorded yet.</p>
+        </div>
       </article>
 
       <article class="glass-card analytics-card model-chart-card">
@@ -388,6 +391,20 @@ onMounted(async () => {
   font-size: 0.85rem;
   text-align: center;
 }
+.distribution-empty { gap: 0.7rem; }
+.distribution-empty p { margin: 0; }
+.empty-donut {
+  width: 112px; height: 112px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: conic-gradient(#30445a 0deg, #30445a 360deg);
+  position: relative;
+}
+.empty-donut::before {
+  content: ''; position: absolute; inset: 12px;
+  border-radius: 50%; background: #0b1726;
+}
+.empty-donut span { position: relative; z-index: 1; color: var(--text-white); font-size: 1.2rem; font-weight: 700; text-align: center; }
+.empty-donut small { display: block; color: var(--text-muted); font-size: 0.65rem; font-weight: 500; }
 .chart-link { color: var(--primary); font-size: 0.78rem; white-space: nowrap; }
 .chart-footnote { margin: 0.75rem 0 0; color: var(--text-dim); font-size: 0.72rem; }
 
