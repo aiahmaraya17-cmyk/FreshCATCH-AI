@@ -93,6 +93,22 @@ exports.getStatistics = (req, res) => {
       ORDER BY p.created_at DESC LIMIT 6
     `).all();
 
+    const predictionActivityByDate = db.prepare(`
+      SELECT date(created_at) AS date, COUNT(*) AS count
+      FROM predictions
+      WHERE date(created_at) >= date('now', '-6 days')
+      GROUP BY date(created_at)
+      ORDER BY date(created_at)
+    `).all();
+    const activityCounts = new Map(predictionActivityByDate.map((row) => [row.date, row.count]));
+    const predictionActivity = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date();
+      day.setUTCHours(0, 0, 0, 0);
+      day.setUTCDate(day.getUTCDate() - (6 - index));
+      const date = day.toISOString().slice(0, 10);
+      return { date, count: activityCounts.get(date) || 0 };
+    });
+
     res.json({
       success: true,
       stats: {
@@ -108,6 +124,7 @@ exports.getStatistics = (req, res) => {
         } : null,
         categoryDistribution,
         speciesDistribution,
+        predictionActivity,
         recentPredictions
       }
     });

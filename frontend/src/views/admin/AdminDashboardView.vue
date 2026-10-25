@@ -4,7 +4,7 @@
       <div>
         <span class="badge badge-cyan">Admin & Researcher Portal</span>
         <h1>Research Intelligence Dashboard</h1>
-        <p class="subtitle">Real-time telemetry, model metrics, and dataset distributions for Roxas wet market</p>
+        <p class="subtitle">Scan trends, production model metrics, and dataset distributions from Roxas wet market</p>
       </div>
       <div class="header-actions">
         <router-link to="/admin/dataset/new" class="btn btn-primary btn-sm">
@@ -21,7 +21,7 @@
       <div class="glass-card kpi-card">
         <div class="kpi-icon icon-users">👥</div>
         <div class="kpi-info">
-          <span class="kpi-num">{{ stats.totalUsers }}</span>
+          <span class="kpi-num">{{ statsLoaded && !loadError ? stats.totalUsers : '—' }}</span>
           <span class="kpi-lbl">Registered Users</span>
         </div>
       </div>
@@ -29,7 +29,7 @@
       <div class="glass-card kpi-card">
         <div class="kpi-icon icon-preds">📊</div>
         <div class="kpi-info">
-          <span class="kpi-num">{{ stats.totalPredictions }}</span>
+          <span class="kpi-num">{{ statsLoaded && !loadError ? stats.totalPredictions : '—' }}</span>
           <span class="kpi-lbl">Total Fish Scans</span>
         </div>
       </div>
@@ -37,7 +37,7 @@
       <div class="glass-card kpi-card">
         <div class="kpi-icon icon-dataset">📁</div>
         <div class="kpi-info">
-          <span class="kpi-num">{{ stats.totalDataset }}</span>
+          <span class="kpi-num">{{ statsLoaded && !loadError ? stats.totalDataset : '—' }}</span>
           <span class="kpi-lbl">Annotated Images</span>
         </div>
       </div>
@@ -45,7 +45,7 @@
       <div class="glass-card kpi-card">
         <div class="kpi-icon icon-acc">🎯</div>
         <div class="kpi-info">
-          <span class="kpi-num text-emerald">{{ (evalMetrics.accuracy * 100).toFixed(1) }}%</span>
+          <span class="kpi-num text-emerald">{{ formatPercent(evalMetrics?.accuracy) }}</span>
           <span class="kpi-lbl">Test Accuracy (CNN)</span>
         </div>
       </div>
@@ -56,32 +56,73 @@
       <div class="model-meta-row">
         <div>
           <span class="badge badge-fresh">Active Production Model</span>
-          <h3>{{ activeModel.model_name || 'FreshCatch MobileNetV2 Classifier' }}</h3>
-          <span class="model-ver-code">{{ activeModel.version || 'FreshCatch-CNN-v1.0-MobileNetV2' }}</span>
+          <h3>{{ activeModel.name || 'No active model reported' }}</h3>
+          <span class="model-ver-code">{{ activeModel.version || 'Model version unavailable' }}</span>
         </div>
         <div class="model-quick-metrics">
           <div class="q-metric">
-            <span class="q-num">{{ (evalMetrics.precision_macro * 100).toFixed(1) }}%</span>
+            <span class="q-num">{{ formatPercent(evalMetrics?.precision_macro) }}</span>
             <span class="q-lbl">Precision</span>
           </div>
           <div class="q-metric">
-            <span class="q-num">{{ (evalMetrics.recall_macro * 100).toFixed(1) }}%</span>
+            <span class="q-num">{{ formatPercent(evalMetrics?.recall_macro) }}</span>
             <span class="q-lbl">Recall</span>
           </div>
           <div class="q-metric">
-            <span class="q-num">{{ (evalMetrics.f1_score_macro * 100).toFixed(1) }}%</span>
+            <span class="q-num">{{ formatPercent(evalMetrics?.f1_score_macro) }}</span>
             <span class="q-lbl">F1-Score</span>
           </div>
         </div>
       </div>
     </div>
 
+    <p v-if="loadError" class="glass-card dashboard-error" role="status">{{ loadError }}</p>
+
+    <section class="analytics-grid mb-4" aria-label="System analytics">
+      <article class="glass-card analytics-card activity-card">
+        <div class="analytics-heading">
+          <div><h3>Scan activity</h3><p>Recorded fish scans per day · last 7 days</p></div>
+          <span class="chart-total">{{ statsLoaded && !loadError ? stats.totalPredictions : '—' }} <small>total</small></span>
+        </div>
+        <div v-if="!statsLoaded" class="chart-empty">Loading scan records…</div>
+        <div v-else-if="loadError" class="chart-empty">Scan activity is currently unavailable.</div>
+        <div v-else-if="hasActivity" class="chart-canvas activity-canvas">
+          <Line :data="activityChartData" :options="lineChartOptions" />
+        </div>
+        <div v-else class="chart-empty">No scan records have been recorded yet.</div>
+      </article>
+
+      <article class="glass-card analytics-card distribution-card">
+        <div class="analytics-heading">
+          <div><h3>Freshness outcomes</h3><p>Distribution of live scans</p></div>
+        </div>
+        <div v-if="!statsLoaded" class="chart-empty">Loading scan records…</div>
+        <div v-else-if="loadError" class="chart-empty">Freshness distribution is currently unavailable.</div>
+        <div v-else-if="hasClassifications" class="chart-canvas doughnut-canvas">
+          <Doughnut :data="distributionChartData" :options="doughnutChartOptions" />
+        </div>
+        <div v-else class="chart-empty">Outcome data will appear after scans are recorded.</div>
+      </article>
+
+      <article class="glass-card analytics-card model-chart-card">
+        <div class="analytics-heading">
+          <div><h3>Model evaluation</h3><p>Held-out evaluation metrics</p></div>
+          <router-link to="/admin/evaluation" class="chart-link">View evaluation</router-link>
+        </div>
+        <div v-if="hasEvalMetrics" class="chart-canvas metrics-canvas">
+          <Bar :data="modelMetricsChartData" :options="metricsChartOptions" />
+        </div>
+        <div v-else class="chart-empty">Evaluation metrics are not available. Run an evaluation to populate this chart.</div>
+        <p class="chart-footnote">These scores describe the test set, not live scan accuracy.</p>
+      </article>
+    </section>
+
     <!-- Admin Quick Navigation Grid -->
     <div class="grid-3 mb-4">
       <router-link to="/admin/dataset" class="glass-card admin-nav-card">
         <div class="nav-card-icon">🗂️</div>
         <h4>Dataset Management</h4>
-        <p>Browse 160+ annotated fish images with split tags & lighting filters</p>
+        <p>Browse fish images by split and lighting condition<span v-if="statsLoaded && !loadError"> ({{ stats.totalDataset }} total)</span>.</p>
       </router-link>
 
       <router-link to="/admin/evaluation" class="glass-card admin-nav-card">
@@ -124,44 +165,127 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
+import { Bar, Doughnut, Line } from 'vue-chartjs';
+import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip } from 'chart.js';
 import ApiService from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
+
+ChartJS.register(ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip);
 
 const authStore = useAuthStore();
 
 const stats = ref({
-  totalUsers: 4,
-  totalPredictions: 2,
-  totalDataset: 160
+  totalUsers: 0,
+  totalPredictions: 0,
+  totalDataset: 0,
+  categoryDistribution: [],
+  predictionActivity: []
 });
+const statsLoaded = ref(false);
+const loadError = ref('');
 
 const activeModel = ref({});
-const evalMetrics = ref({
-  accuracy: 0.924,
-  precision_macro: 0.918,
-  recall_macro: 0.907,
-  f1_score_macro: 0.912
-});
+const evalMetrics = ref(null);
+
+const hasActivity = computed(() => stats.value.predictionActivity.some((item) => item.count > 0));
+const hasClassifications = computed(() => stats.value.categoryDistribution.some((item) => item.count > 0));
+const hasEvalMetrics = computed(() => ['accuracy', 'precision_macro', 'recall_macro', 'f1_score_macro']
+  .every((key) => Number.isFinite(evalMetrics.value?.[key])));
+
+const activityChartData = computed(() => ({
+  labels: stats.value.predictionActivity.map(({ date }) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))),
+  datasets: [{
+    label: 'Scans',
+    data: stats.value.predictionActivity.map(({ count }) => count),
+    borderColor: '#22c5f2',
+    backgroundColor: 'rgba(34, 197, 242, 0.14)',
+    pointBackgroundColor: '#22c5f2',
+    pointBorderColor: '#071321',
+    pointBorderWidth: 2,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    borderWidth: 2.5,
+    tension: 0.35,
+    fill: true
+  }]
+}));
+
+const freshnessColors = ['#10b981', '#f59e0b', '#fb923c', '#ef4444', '#64748b'];
+const distributionChartData = computed(() => ({
+  labels: stats.value.categoryDistribution.map(({ classification }) => formatClassification(classification)),
+  datasets: [{
+    data: stats.value.categoryDistribution.map(({ count }) => count),
+    backgroundColor: stats.value.categoryDistribution.map((_, index) => freshnessColors[index % freshnessColors.length]),
+    borderColor: '#0b1726',
+    borderWidth: 3,
+    hoverOffset: 6
+  }]
+}));
+
+const modelMetricsChartData = computed(() => ({
+  labels: ['Accuracy', 'Precision', 'Recall', 'F1 score'],
+  datasets: [{
+    label: 'Test set score',
+    data: [evalMetrics.value.accuracy, evalMetrics.value.precision_macro, evalMetrics.value.recall_macro, evalMetrics.value.f1_score_macro].map((value) => Number((value * 100).toFixed(2))),
+    backgroundColor: ['#10b981', '#22c5f2', '#14b8a6', '#8b5cf6'],
+    borderRadius: 6,
+    barThickness: 17
+  }]
+}));
+
+const commonChartText = '#94a3b8';
+const lineChartOptions = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { displayColors: false } },
+  scales: {
+    x: { grid: { display: false }, ticks: { color: commonChartText, maxRotation: 0 } },
+    y: { beginAtZero: true, ticks: { precision: 0, color: commonChartText }, grid: { color: 'rgba(148,163,184,0.12)' } }
+  }
+};
+const doughnutChartOptions = {
+  responsive: true, maintainAspectRatio: false, cutout: '68%',
+  plugins: { legend: { position: 'right', labels: { color: commonChartText, usePointStyle: true, padding: 16 } } }
+};
+const metricsChartOptions = {
+  indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => ` ${context.raw.toFixed(2)}%` } } },
+  scales: {
+    x: { min: 0, max: 100, ticks: { color: commonChartText, callback: (value) => `${value}%` }, grid: { color: 'rgba(148,163,184,0.12)' } },
+    y: { ticks: { color: commonChartText }, grid: { display: false } }
+  }
+};
+
+function formatPercent(value) {
+  return value !== null && value !== undefined && Number.isFinite(Number(value))
+    ? `${(Number(value) * 100).toFixed(1)}%`
+    : '—';
+}
+
+function formatClassification(value) {
+  return String(value || 'Unknown').replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 onMounted(async () => {
   try {
     const statRes = await ApiService.getStatistics();
     if (statRes.success) {
-      stats.value.totalUsers = statRes.stats.totalUsers;
-      stats.value.totalPredictions = statRes.stats.totalPredictions;
-      stats.value.totalDataset = statRes.stats.totalDataset;
-      if (statRes.stats.activeModel) {
-        activeModel.value = statRes.stats.activeModel;
-      }
+      stats.value = { ...stats.value, ...statRes.stats };
+      activeModel.value = statRes.stats.activeModel || {};
     }
-
+    statsLoaded.value = true;
+  } catch (e) {
+    loadError.value = 'System usage data could not be loaded. Check the API connection and try again.';
+    statsLoaded.value = true;
+    console.error('Failed to load admin statistics:', e);
+  }
+  try {
     const evalRes = await ApiService.getEvaluationMetrics();
     if (evalRes.success && evalRes.evaluation) {
-      evalMetrics.value = evalRes.evaluation.metrics;
+      evalMetrics.value = evalRes.evaluation.metrics || null;
     }
   } catch (e) {
-    console.error('Failed to load admin stats:', e);
+    console.info('Model evaluation metrics are not available:', e.message);
   }
 });
 </script>
@@ -220,6 +344,52 @@ onMounted(async () => {
 }
 
 .text-emerald { color: var(--color-fresh); }
+
+.dashboard-error {
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1rem;
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+  gap: 1rem;
+}
+
+.analytics-card { min-width: 0; padding: 1.35rem; }
+.model-chart-card { grid-column: 1 / -1; }
+
+.analytics-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.analytics-heading h3 { margin: 0; font-size: 1rem; color: var(--text-white); }
+.analytics-heading p { margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--text-muted); }
+.chart-total { color: var(--text-white); font-size: 1.2rem; font-weight: 700; white-space: nowrap; }
+.chart-total small { color: var(--text-muted); font-size: 0.7rem; font-weight: 500; }
+.chart-canvas { position: relative; width: 100%; min-width: 0; }
+.activity-canvas { height: 235px; }
+.doughnut-canvas { height: 235px; }
+.metrics-canvas { height: 250px; }
+.chart-empty {
+  min-height: 210px;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  border: 1px dashed rgba(148,163,184,0.22);
+  border-radius: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.chart-link { color: var(--primary); font-size: 0.78rem; white-space: nowrap; }
+.chart-footnote { margin: 0.75rem 0 0; color: var(--text-dim); font-size: 0.72rem; }
 
 .model-status-card {
   padding: 1.75rem;
@@ -320,6 +490,11 @@ onMounted(async () => {
   .model-ver-code { overflow-wrap: anywhere; }
   .model-quick-metrics { width: 100%; justify-content: space-around; gap: 0.75rem; }
   .q-num { font-size: 1.2rem; }
+  .analytics-grid { grid-template-columns: minmax(0, 1fr); }
+  .model-chart-card { grid-column: auto; }
+  .analytics-card { padding: 1.1rem; }
+  .activity-canvas, .doughnut-canvas { height: 220px; }
+  .analytics-heading { align-items: flex-start; }
   .admin-nav-card { min-width: 0; padding: 1.2rem; }
   .admin-nav-card h4,
   .admin-nav-card p { overflow-wrap: anywhere; }
